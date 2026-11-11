@@ -1,0 +1,23 @@
+[theme]
+base = "light"
+primaryColor = "#F2C94C"
+backgroundColor = "#FCFBF7"
+secondaryBackgroundColor = "#F3F5ED"
+textColor = "#1D3327"
+font = "sans serif"
+baseRadius = "large"
+
+[server]
+address = "0.0.0.0"
+port = 8501
+headless = true
+maxUploadSize = 10
+enableXsrfProtection = true
+enableCORS = true
+
+[browser]
+gatherUsageStats = false
+
+[client]
+toolbarMode = "minimal"
+showErrorDetails = false
