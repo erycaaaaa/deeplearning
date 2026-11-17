@@ -21,7 +21,7 @@ def test_real_single_sample_and_reset():
     assert len(app.get("progress")) == 4
     original = app.session_state["single_result"]
     app.run()
-    assert app.session_state["single_result"] is original  # reruns reuse the actual result
+    assert app.session_state["single_result"] is original
     app.button(key="reset_single").click().run()
     assert not app.exception
     assert app.button(key="analyze_single").disabled

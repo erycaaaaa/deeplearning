@@ -1,4 +1,4 @@
-"""Exercise both real models. Only sample images are written to test-results/."""
+"""Smoke-test both models with local samples; write artifacts to test-results/."""
 import json
 import sys
 from pathlib import Path

@@ -32,7 +32,7 @@ class RecordingClassifier:
 
 def detector_for(boxes):
     instance = BananaDetector.__new__(BananaDetector)
-    instance.banana_class = 9  # Deliberately not COCO's fixed numeric index.
+    instance.banana_class = 9  # Non-COCO index verifies metadata-based class lookup.
     instance._lock = RLock()
     calls = []
 

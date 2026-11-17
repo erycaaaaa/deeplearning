@@ -1,4 +1,4 @@
-"""YOLOv8 COCO banana detection followed by the original Keras classifier."""
+"""YOLOv8 banana detection with MobileNetV2 crop classification."""
 from __future__ import annotations
 
 import math
@@ -31,7 +31,7 @@ class DetectorError(RuntimeError):
 
 
 def ensure_weights(path: Path = DEFAULT_WEIGHTS_PATH) -> Path:
-    """Download only public model weights; uploaded images never leave memory."""
+    """Download missing YOLO weights atomically."""
     path = Path(path)
     if path.is_file() and path.stat().st_size > 0:
         return path
@@ -141,7 +141,7 @@ class BananaDetector:
                 prediction = classifier.classify(rgb.crop(crop_bounds))
                 detections.append(Detection(len(detections) + 1, box, crop_bounds,
                                             float(score), prediction))
-        # An empty list intentionally never triggers whole-image classification.
+        # Do not classify the full image when no banana boxes are found.
         return DetectionResult(detections, annotate_detections(rgb, detections), confidence)
 
 

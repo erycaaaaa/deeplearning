@@ -1,4 +1,4 @@
-"""Safe in-memory decoding, bounded xyxy coordinates, and PNG annotation."""
+"""Image validation, bounding-box utilities, and annotation."""
 from __future__ import annotations
 
 import math
@@ -23,7 +23,7 @@ class ImageValidationError(ValueError):
 
 
 def validate_image(data: bytes, filename: str = "photo.jpg") -> Image.Image:
-    """Verify content, not just extension; never write the uploaded data to disk."""
+    """Decode a JPEG/PNG in memory as an EXIF-corrected RGB image."""
     if not data:
         raise ImageValidationError("File kosong. Pilih foto JPG, JPEG, atau PNG yang valid.")
     if len(data) > MAX_BYTES:
@@ -33,8 +33,7 @@ def validate_image(data: bytes, filename: str = "photo.jpg") -> Image.Image:
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("error", Image.DecompressionBombWarning)
-            # Keep Pillow's original decoder. Ultralytics patches Image.open
-            # globally and may try to import a HEIF plugin for corrupt JPEGs.
+            # Bypass Ultralytics' Image.open patch, which probes HEIF on decoding errors.
             with pillow_open(BytesIO(data)) as probe:
                 if probe.format not in ALLOWED_FORMATS:
                     raise ImageValidationError("Isi file harus benar-benar berupa JPEG atau PNG.")
@@ -52,7 +51,6 @@ def validate_image(data: bytes, filename: str = "photo.jpg") -> Image.Image:
             with pillow_open(BytesIO(data)) as source:
                 source.load()
                 oriented = ImageOps.exif_transpose(source)
-                # Transparent photos receive a neutral white background.
                 if "A" in oriented.getbands() or "transparency" in oriented.info:
                     rgba = oriented.convert("RGBA")
                     rgb = Image.new("RGB", rgba.size, "white")
@@ -98,22 +96,19 @@ def annotation_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
 
 
 def annotate_detections(image: Image.Image, detections: Iterable[Any]) -> Image.Image:
-    """Draw in the original EXIF-corrected image coordinate system.
-
-    Labels scale with canvas width to remain readable in a mobile preview.
-    Numbers link overlapping labels to the separate, accessible result cards.
-    """
+    """Draw boxes and numbered labels in EXIF-corrected image coordinates."""
     from services.classifier import CLASS_COLORS
 
     canvas = image.convert("RGB").copy()
     draw = ImageDraw.Draw(canvas)
     width, height = canvas.size
+    # Scale annotations with image width to keep mobile previews readable.
     font_size = max(14, round(width * 0.034))
     line_width = max(2, round(width * 0.006))
     margin = max(2, round(width * 0.008))
     valid = [(item, clamp_box(item.box, canvas.size)) for item in detections]
     valid = [(item, box) for item, box in valid if box is not None]
-    # Draw every box first so a subsequent box cannot cross an earlier label.
+    # Render boxes and leader lines before text to keep labels readable.
     for item, box in valid:
         x1, y1, x2, y2 = box
         color = CLASS_COLORS[item.prediction.class_index]
@@ -135,8 +130,7 @@ def annotate_detections(image: Image.Image, detections: Iterable[Any]) -> Image.
         label_height = min(height, bounds[3] - bounds[1] + margin * 2)
         left = max(0, min(x1, width - label_width))
         top = max(0, min(y1 - label_height if y1 >= label_height else y1, height - label_height))
-        # Prefer the space immediately above the object, then adjacent rows.
-        # Dense bunches otherwise place long class labels on top of each other.
+        # Try adjacent rows to keep labels from overlapping.
         candidates = [(left, top)]
         stride = label_height + margin
         for offset in range(stride, height + stride, stride):
@@ -160,7 +154,6 @@ def annotate_detections(image: Image.Image, detections: Iterable[Any]) -> Image.
         foreground = "white" if item.prediction.class_index in (1, 3) else "#18271E"
         labels.append(((left, top, left + label_width - 1, top + label_height - 1), color,
                        (left + margin - bounds[0], top + margin - bounds[1]), text, foreground, font))
-    # Draw text last so leader lines from neighboring objects cannot obscure it.
     for rectangle, color, origin, text, foreground, font in labels:
         draw.rectangle(rectangle, fill=color)
         draw.text(origin, text, fill=foreground, font=font)

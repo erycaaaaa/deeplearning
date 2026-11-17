@@ -1,7 +1,4 @@
-"""Real browser uploads, real inference, and responsive overflow checks.
-
-Start Streamlit first. Test images are the repository's local samples only.
-"""
+"""Browser smoke tests for a running Streamlit app using local samples."""
 from __future__ import annotations
 
 import json
@@ -31,7 +28,7 @@ def verify_layout(page, name: str, width: int, height: int):
     })""")
     assert metrics["document"] <= width + 1, metrics
     assert not metrics["overflowing"], metrics
-    # Streamlit scrolls its app panel, so select a useful viewport for screenshots.
+    # Streamlit scrolls within its app panel, so scroll the target into view.
     if name == "initial":
         page.locator(".brand-bar").scroll_into_view_if_needed()
     elif name == "single_result":
@@ -82,7 +79,7 @@ def main():
         page.get_by_role("button", name="Coba gambar lain", exact=True).click()
         expect(page.get_by_role("button", name="Deteksi & Analisis", exact=True)).to_be_disabled(timeout=30_000)
         report["multi_reset"] = "passed"
-        # Reproduce corrupt uploads after Ultralytics has been imported.
+        # Regression: reject corrupt uploads after YOLO patches Pillow.
         page.locator('input[type="file"]').set_input_files({
             "name": "broken.jpg", "mimeType": "image/jpeg", "buffer": b"not a valid photo"
         })

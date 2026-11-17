@@ -1,4 +1,4 @@
-"""Banana Ripeness Classification — local Streamlit application."""
+"""Streamlit interface for banana ripeness classification."""
 from __future__ import annotations
 
 import hashlib

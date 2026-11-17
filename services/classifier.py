@@ -1,4 +1,4 @@
-"""MobileNetV2 inference with the exact training class order and preprocessing."""
+"""MobileNetV2 ripeness classification and preprocessing."""
 from __future__ import annotations
 
 import os
@@ -17,7 +17,7 @@ _plot_cache = ROOT / ".cache" / "matplotlib"
 _plot_cache.mkdir(parents=True, exist_ok=True)
 os.environ.setdefault("MPLCONFIGDIR", str(_plot_cache))
 DEFAULT_MODEL_PATH = ROOT / "models" / "mobilenet_model.keras"
-# This order is part of the checkpoint contract. Never sort it.
+# Output order must match the trained checkpoint.
 CLASS_NAMES = ("matang", "mentah", "setengah-matang", "terlalu-matang")
 CLASS_COLORS = ("#E99A25", "#27834D", "#F2C94C", "#9A5033")
 CLASS_DESCRIPTIONS = (
@@ -35,7 +35,7 @@ CLASS_ADVICE = (
 
 
 class ClassifierError(RuntimeError):
-    """A checkpoint or its actual output is incompatible with this application."""
+    """Raised when a checkpoint or its predictions fail validation."""
 
 
 @dataclass(frozen=True)
@@ -53,11 +53,10 @@ class Prediction:
 
 
 def preprocess_image(image: Image.Image) -> np.ndarray:
-    """EXIF -> RGB -> TF bilinear resize -> float32 /255 -> (1,224,224,3).
+    """Return an RGB float32 batch of shape (1, 224, 224, 3) in [0, 1].
 
-    tf.image.resize (antialias=False) intentionally matches read_image in the
-    supplied notebook. Pillow's bilinear implementation has different sampling.
-    The checkpoint itself maps [0,1] to [-1,1]; do not preprocess_input here.
+    TensorFlow bilinear resizing matches the training notebook. The model
+    already rescales to [-1, 1]; do not apply preprocess_input here.
     """
     import tensorflow as tf
 
@@ -108,7 +107,7 @@ class BananaClassifier:
             raise ClassifierError("Checkpoint harus memiliki Rescaling(2.0, offset=-1.0).")
         if getattr(self.model.layers[-1].activation, "__name__", "") != "softmax":
             raise ClassifierError("Layer output checkpoint harus menggunakan softmax.")
-        # st.cache_resource shares resources between sessions. Serialize model calls.
+        # Cached models are shared across sessions; serialize inference.
         self._lock = RLock()
 
     def classify(self, image: Image.Image) -> Prediction:
